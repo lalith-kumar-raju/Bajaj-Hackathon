@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: hackrx-llm-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: AZURE_AI_STUDIO_ENDPOINT
+        sync: false
+      - key: AZURE_AI_STUDIO_API_KEY
+        sync: false
+      - key: AZURE_AI_STUDIO_API_VERSION
+        value: 2024-02-15-preview
+      - key: LLM_MODEL
+        value: gpt-4o
+      - key: EMBEDDING_MODEL
+        value: text-embedding-3-large
+      - key: QDRANT_HOST
+        value: 38c5f8db-dbe7-44d7-b115-e8accfcb0708.us-west-2-0.aws.cloud.qdrant.io
+      - key: QDRANT_PORT
+        value: 6333
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: QDRANT_COLLECTION_NAME
+        value: hackrx-documents
+      - key: HACKRX_API_KEY
+        value: 031e2883dcfac08106d5a9982528deff7dcd207bd1efbca391476ea56fec65ac 
