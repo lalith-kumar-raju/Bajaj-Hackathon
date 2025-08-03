@@ -32,39 +32,31 @@ class LLMProcessor:
         )
         logger.info("✅ Azure AI Studio LLM connection successful")
         
-        # System prompts for different query types
+        # Improved system prompts for better accuracy
         self.system_prompts = {
-            "coverage_check": """You are an expert insurance policy analyzer. Your task is to analyze insurance policy documents and answer questions about coverage.
+            "coverage_check": """You are an expert insurance policy analyzer. Your task is to analyze insurance policy documents and answer questions about coverage with high accuracy.
 
 Key Guidelines:
-1. Only base your answers on the provided policy document content
+1. Base your answers ONLY on the provided policy document content
 2. Be specific and cite exact clauses when possible
-3. If information is not in the document, state this clearly
-4. Provide clear yes/no answers when appropriate
-5. Include relevant conditions and limitations
+3. If information is not in the document, state "The information is not available in the provided policy document"
+4. Provide clear yes/no answers when appropriate, followed by supporting details
+5. Include relevant conditions, limitations, and exclusions
 6. Use professional insurance terminology
+7. Be comprehensive but concise
 
-CRITICAL FORMATTING RULES - FOLLOW EXACTLY:
-- Write in PLAIN TEXT ONLY - like a simple text message
-- NO markdown formatting AT ALL
-- NO bold, NO italic, NO special characters
-- NO escape characters like \\n or \\"
-- NO line breaks or paragraph breaks
-- NO bullet points or lists
-- NO quotes with escape characters
-- Write everything as ONE continuous paragraph
-- Use simple periods and commas only
-- Write as if you're sending a basic SMS text
+IMPORTANT FORMATTING RULES:
+- Write in plain text only
+- No markdown formatting, no special characters
+- Write as one continuous paragraph
+- Use simple punctuation only
 
-ANSWER LENGTH RULES:
-- Keep answers CONCISE and DIRECT
-- Answer the question in 1-2 sentences maximum
-- NO verbose explanations
-- NO "information not found" messages
-- If you can't answer, state this clearly
-- Focus on the specific information requested
-
-IMPORTANT: Your response must be completely plain text with no formatting whatsoever.""",
+ANSWER QUALITY RULES:
+- Provide specific details from the policy when available
+- Include relevant policy sections and clauses
+- If the information exists, be thorough in your response
+- If information is missing, clearly state this
+- Focus on accuracy over brevity""",
 
             "waiting_period": """You are an expert insurance policy analyzer specializing in waiting periods and time-based conditions.
 
@@ -74,28 +66,19 @@ Key Guidelines:
 3. Provide exact timeframes when available
 4. Explain any conditions that affect waiting periods
 5. Be precise about when coverage begins
+6. Include relevant policy sections
 
-CRITICAL FORMATTING RULES - FOLLOW EXACTLY:
-- Write in PLAIN TEXT ONLY - like a simple text message
-- NO markdown formatting AT ALL
-- NO bold, NO italic, NO special characters
-- NO escape characters like \\n or \\"
-- NO line breaks or paragraph breaks
-- NO bullet points or lists
-- NO quotes with escape characters
-- Write everything as ONE continuous paragraph
-- Use simple periods and commas only
-- Write as if you're sending a basic SMS text
+IMPORTANT FORMATTING RULES:
+- Write in plain text only
+- No markdown formatting, no special characters
+- Write as one continuous paragraph
+- Use simple punctuation only
 
-ANSWER LENGTH RULES:
-- Keep answers CONCISE and DIRECT
-- Answer the question in 1-2 sentences maximum
-- NO verbose explanations
-- NO "information not found" messages
-- If you can't answer, state this clearly
-- Focus on the specific information requested
-
-IMPORTANT: Your response must be completely plain text with no formatting whatsoever.""",
+ANSWER QUALITY RULES:
+- Provide specific time periods and conditions
+- Include relevant policy clauses
+- If information exists, be thorough
+- If information is missing, clearly state this""",
 
             "exclusion_check": """You are an expert insurance policy analyzer focusing on exclusions and limitations.
 
@@ -105,28 +88,19 @@ Key Guidelines:
 3. Explain conditions that void coverage
 4. Be thorough in identifying restrictions
 5. Distinguish between general exclusions and specific procedure exclusions
+6. Include relevant policy sections
 
-CRITICAL FORMATTING RULES - FOLLOW EXACTLY:
-- Write in PLAIN TEXT ONLY - like a simple text message
-- NO markdown formatting AT ALL
-- NO bold, NO italic, NO special characters
-- NO escape characters like \\n or \\"
-- NO line breaks or paragraph breaks
-- NO bullet points or lists
-- NO quotes with escape characters
-- Write everything as ONE continuous paragraph
-- Use simple periods and commas only
-- Write as if you're sending a basic SMS text
+IMPORTANT FORMATTING RULES:
+- Write in plain text only
+- No markdown formatting, no special characters
+- Write as one continuous paragraph
+- Use simple punctuation only
 
-ANSWER LENGTH RULES:
-- Keep answers CONCISE and DIRECT
-- Answer the question in 1-2 sentences maximum
-- NO verbose explanations
-- NO "information not found" messages
-- If you can't answer, state this clearly
-- Focus on the specific information requested
-
-IMPORTANT: Your response must be completely plain text with no formatting whatsoever.""",
+ANSWER QUALITY RULES:
+- List specific exclusions and limitations
+- Include relevant policy clauses
+- Be comprehensive in coverage
+- If information is missing, clearly state this""",
 
             "policy_details": """You are an expert insurance policy analyzer providing detailed policy information.
 
@@ -136,59 +110,42 @@ Key Guidelines:
 3. Explain policy terms and conditions
 4. Include relevant definitions and clarifications
 5. Be comprehensive but concise
+6. Include relevant policy sections
 
-CRITICAL FORMATTING RULES - FOLLOW EXACTLY:
-- Write in PLAIN TEXT ONLY - like a simple text message
-- NO markdown formatting AT ALL
-- NO bold, NO italic, NO special characters
-- NO escape characters like \\n or \\"
-- NO line breaks or paragraph breaks
-- NO bullet points or lists
-- NO quotes with escape characters
-- Write everything as ONE continuous paragraph
-- Use simple periods and commas only
-- Write as if you're sending a basic SMS text
+IMPORTANT FORMATTING RULES:
+- Write in plain text only
+- No markdown formatting, no special characters
+- Write as one continuous paragraph
+- Use simple punctuation only
 
-ANSWER LENGTH RULES:
-- Keep answers CONCISE and DIRECT
-- Answer the question in 1-2 sentences maximum
-- NO verbose explanations
-- NO "information not found" messages
-- If you can't answer, state this clearly
-- Focus on the specific information requested
+ANSWER QUALITY RULES:
+- Provide specific policy details
+- Include relevant clauses and sections
+- Be thorough in explanations
+- If information is missing, clearly state this""",
 
-IMPORTANT: Your response must be completely plain text with no formatting whatsoever.""",
-
-            "general_query": """You are an expert insurance policy analyzer. Answer questions about the insurance policy based on the provided document content.
+            "general_query": """You are an expert insurance policy analyzer. Answer questions about the insurance policy based on the provided document content with high accuracy.
 
 Key Guidelines:
-1. Base answers only on the provided policy document
+1. Base answers ONLY on the provided policy document
 2. Be accurate and specific
 3. Cite relevant policy sections when possible
 4. Provide clear, helpful information
-5. If information is not available, state this clearly
+5. If information is not available, state "The information is not available in the provided policy document"
+6. Include relevant policy clauses and sections
 
-CRITICAL FORMATTING RULES - FOLLOW EXACTLY:
-- Write in PLAIN TEXT ONLY - like a simple text message
-- NO markdown formatting AT ALL
-- NO bold, NO italic, NO special characters
-- NO escape characters like \\n or \\"
-- NO line breaks or paragraph breaks
-- NO bullet points or lists
-- NO quotes with escape characters
-- Write everything as ONE continuous paragraph
-- Use simple periods and commas only
-- Write as if you're sending a basic SMS text
+IMPORTANT FORMATTING RULES:
+- Write in plain text only
+- No markdown formatting, no special characters
+- Write as one continuous paragraph
+- Use simple punctuation only
 
-ANSWER LENGTH RULES:
-- Keep answers CONCISE and DIRECT
-- Answer the question in 1-2 sentences maximum
-- NO verbose explanations
-- NO "information not found" messages
-- If you can't answer, state this clearly
-- Focus on the specific information requested
-
-IMPORTANT: Your response must be completely plain text with no formatting whatsoever."""
+ANSWER QUALITY RULES:
+- Provide specific details from the policy
+- Include relevant policy sections
+- Be thorough when information is available
+- If information is missing, clearly state this
+- Focus on accuracy and completeness"""
         }
     
     def process_query(self, query: str, relevant_chunks: List[Dict[str, Any]], query_analysis: QueryAnalysis) -> str:
@@ -252,28 +209,63 @@ IMPORTANT: Your response must be completely plain text with no formatting whatso
         return text.strip()
     
     def _prepare_context(self, relevant_chunks: List[Dict[str, Any]]) -> str:
-        """Prepare context from relevant document chunks"""
+        """Prepare context from relevant document chunks with improved quality"""
         if not relevant_chunks:
             return "No relevant policy information found."
         
+        # Sort chunks by relevance score for better context
+        sorted_chunks = sorted(relevant_chunks, key=lambda x: x.get("score", 0), reverse=True)
+        
         context_parts = []
-        for i, chunk in enumerate(relevant_chunks, 1):
+        total_context_length = 0
+        max_context_length = 8000  # Limit context to prevent token overflow
+        
+        for i, chunk in enumerate(sorted_chunks):
             content = chunk.get("content", "")
             score = chunk.get("score", 0)
             
             # Only include chunks with good relevance scores
             if score >= self.config.SIMILARITY_THRESHOLD:
-                context_parts.append(f"Policy Section {i} (Relevance: {score:.2f}): {content}")
+                # Clean and prepare content
+                cleaned_content = self._clean_chunk_content(content)
+                
+                # Add chunk with metadata
+                chunk_info = f"Policy Section {i+1} (Relevance: {score:.3f}): {cleaned_content}"
+                
+                # Check if adding this chunk would exceed context limit
+                if total_context_length + len(chunk_info) > max_context_length:
+                    break
+                
+                context_parts.append(chunk_info)
+                total_context_length += len(chunk_info)
+        
+        if not context_parts:
+            return "No sufficiently relevant policy information found."
         
         return " ".join(context_parts)
     
+    def _clean_chunk_content(self, content: str) -> str:
+        """Clean chunk content for better LLM processing"""
+        import re
+        
+        # Remove excessive whitespace
+        content = re.sub(r'\s+', ' ', content)
+        
+        # Remove common PDF artifacts
+        content = re.sub(r'[^\w\s\.\,\;\:\!\?\-\(\)\[\]\{\}]', '', content)
+        
+        # Clean up punctuation
+        content = content.replace('  ', ' ')
+        
+        return content.strip()
+    
     def _create_user_prompt(self, query: str, context: str, query_analysis: QueryAnalysis) -> str:
-        """Create user prompt for LLM"""
+        """Create improved user prompt for LLM with better structure"""
         entities_info = ""
         if query_analysis.entities:
             entities_info = f" Extracted Information: {json.dumps(query_analysis.entities, indent=2)}"
         
-        prompt = f"""Based on the following insurance policy document sections, please answer this question:
+        prompt = f"""Based on the following insurance policy document sections, please answer this question accurately and comprehensively:
 
 Question: {query}
 
@@ -282,7 +274,14 @@ Question: {query}
 Policy Document Sections:
 {context}
 
-Please provide a clear, accurate answer based only on the policy information provided above. If the information is not available in the document, please state this clearly."""
+Instructions:
+1. Answer based ONLY on the provided policy information
+2. Be specific and include relevant details from the policy
+3. If the information is not available in the document, state "The information is not available in the provided policy document"
+4. Include relevant policy clauses and sections when possible
+5. Provide a clear, accurate answer in plain text format
+
+Please provide your answer:"""
 
         return prompt
     

@@ -30,22 +30,22 @@ class Config:
     # HackRx API Key
     HACKRX_API_KEY = os.getenv("HACKRX_API_KEY")
     
-    # Model Settings
-    MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4000"))
-    TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))
+    # Model Settings - Optimized for better accuracy
+    MAX_TOKENS = int(os.getenv("MAX_TOKENS", "6000"))  # Increased for more detailed answers
+    TEMPERATURE = float(os.getenv("TEMPERATURE", "0.3"))  # Increased for more creative responses
     
-    # Enhanced Document Processing
-    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
-    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
-    MAX_CHUNKS_PER_DOCUMENT = int(os.getenv("MAX_CHUNKS_PER_DOCUMENT", "1000"))
+    # Enhanced Document Processing - Optimized for policy documents
+    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1200"))  # Increased for better context
+    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "300"))  # Increased overlap
+    MAX_CHUNKS_PER_DOCUMENT = int(os.getenv("MAX_CHUNKS_PER_DOCUMENT", "1500"))  # Increased limit
     
-    # Enhanced Search Settings
-    TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "15"))
-    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.15"))
+    # Enhanced Search Settings - Optimized for better retrieval
+    TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "20"))  # Increased for more context
+    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))  # Increased for better quality
     
-    # API Settings
-    API_TIMEOUT = int(os.getenv("API_TIMEOUT", "30"))
-    MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))
+    # API Settings - Optimized for rate limiting
+    API_TIMEOUT = int(os.getenv("API_TIMEOUT", "60"))  # Increased timeout
+    MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "5"))  # Reduced for rate limiting
     
     # Cache Settings
     ENABLE_CACHE = os.getenv("ENABLE_CACHE", "True").lower() == "true"
