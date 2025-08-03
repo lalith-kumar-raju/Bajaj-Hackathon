@@ -31,25 +31,25 @@ class Config:
     HACKRX_API_KEY = os.getenv("HACKRX_API_KEY")
     
     # Model Settings
-    MAX_TOKENS = 4000
-    TEMPERATURE = 0.1
+    MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4000"))
+    TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))
     
     # Enhanced Document Processing
-    CHUNK_SIZE = 1000  # Increased for better granularity with large docs
-    CHUNK_OVERLAP = 200  # Increased for better overlap
-    MAX_CHUNKS_PER_DOCUMENT = 1000  # Increased for large documents
+    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
+    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
+    MAX_CHUNKS_PER_DOCUMENT = int(os.getenv("MAX_CHUNKS_PER_DOCUMENT", "1000"))
     
     # Enhanced Search Settings
-    TOP_K_RESULTS = 15  # Increased for better retrieval
-    SIMILARITY_THRESHOLD = 0.15  # Lowered for more results with complex questions
+    TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "15"))
+    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.15"))
     
     # API Settings
-    API_TIMEOUT = 30
-    MAX_CONCURRENT_REQUESTS = 10
+    API_TIMEOUT = int(os.getenv("API_TIMEOUT", "30"))
+    MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))
     
     # Cache Settings
-    ENABLE_CACHE = True
-    CACHE_TTL = 3600  # 1 hour
+    ENABLE_CACHE = os.getenv("ENABLE_CACHE", "True").lower() == "true"
+    CACHE_TTL = int(os.getenv("CACHE_TTL", "3600"))
     
     # Vector Database Settings
-    EMBEDDING_DIMENSION = 3072  # For text-embedding-3-large
+    EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "3072"))

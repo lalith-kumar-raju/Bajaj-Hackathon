@@ -1,16 +1,12 @@
 services:
   - type: web
-    name: hackrx-llm-api
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    name: bajaj-hackathon
+    env: docker
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: AZURE_AI_STUDIO_ENDPOINT
-        sync: false
+        value: https://new-bajaj-gpt.services.ai.azure.com/
       - key: AZURE_AI_STUDIO_API_KEY
-        sync: false
+        value: Do7iKOGnzVJIRA7LpsxCXhMYyF2fr8UigAx6vC3bI8qLj465efvNJQQJ99BHACHYHv6XJ3w3AAAAACO
       - key: AZURE_AI_STUDIO_API_VERSION
         value: 2024-02-15-preview
       - key: LLM_MODEL
@@ -18,12 +14,38 @@ services:
       - key: EMBEDDING_MODEL
         value: text-embedding-3-large
       - key: QDRANT_HOST
-        value: 38c5f8db-dbe7-44d7-b115-e8accfcb0708.us-west-2-0.aws.cloud.qdrant.io
+        value: https://38c5f8db-dbe7-44d7-b115-e8accfcb0708.us-west-2-0.aws.cloud.qdrant.io
       - key: QDRANT_PORT
         value: 6333
       - key: QDRANT_API_KEY
-        sync: false
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.qAN5St_QdsYYQzvNJZ8NIN6agMsO2SH
       - key: QDRANT_COLLECTION_NAME
         value: hackrx-documents
       - key: HACKRX_API_KEY
-        value: 031e2883dcfac08106d5a9982528deff7dcd207bd1efbca391476ea56fec65ac 
+        value: 031e2883dcfac08106d5a9982528deff7dcd207bd1efbca391476ea56fec65ac
+      - key: PORT
+        value: 8000
+      - key: MAX_TOKENS
+        value: 4000
+      - key: TEMPERATURE
+        value: 0.1
+      - key: CHUNK_SIZE
+        value: 1000
+      - key: CHUNK_OVERLAP
+        value: 200
+      - key: MAX_CHUNKS_PER_DOCUMENT
+        value: 1000
+      - key: TOP_K_RESULTS
+        value: 15
+      - key: SIMILARITY_THRESHOLD
+        value: 0.15
+      - key: API_TIMEOUT
+        value: 30
+      - key: MAX_CONCURRENT_REQUESTS
+        value: 10
+      - key: ENABLE_CACHE
+        value: True
+      - key: CACHE_TTL
+        value: 3600
+      - key: EMBEDDING_DIMENSION
+        value: 3072 
