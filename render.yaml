@@ -26,26 +26,42 @@ services:
       - key: PORT
         value: 8000
       - key: MAX_TOKENS
-        value: 6000
+        value: 4000
       - key: TEMPERATURE
-        value: 0.3
+        value: 0.1
       - key: CHUNK_SIZE
-        value: 1200
+        value: 800
       - key: CHUNK_OVERLAP
-        value: 300
+        value: 200
       - key: MAX_CHUNKS_PER_DOCUMENT
-        value: 1500
+        value: 1000
       - key: TOP_K_RESULTS
-        value: 20
+        value: 8
       - key: SIMILARITY_THRESHOLD
-        value: 0.25
+        value: 0.4
       - key: API_TIMEOUT
-        value: 60
+        value: 30
       - key: MAX_CONCURRENT_REQUESTS
-        value: 5
+        value: 10
       - key: ENABLE_CACHE
         value: True
       - key: CACHE_TTL
-        value: 3600
+        value: 7200
       - key: EMBEDDING_DIMENSION
-        value: 3072 
+        value: 3072
+      - key: EMBEDDING_BATCH_SIZE
+        value: 20
+      - key: QDRANT_BATCH_SIZE
+        value: 10
+      - key: ENABLE_RESPONSE_CACHE
+        value: True
+      - key: RESPONSE_CACHE_TTL
+        value: 3600
+      - key: SPEED_PRIORITY
+        value: False
+      - key: MAX_QUERY_VARIATIONS
+        value: 3
+      - key: ENABLE_ENHANCED_PROMPTS
+        value: True
+      - key: ENABLE_QUERY_VARIATIONS
+        value: True 

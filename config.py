@@ -30,26 +30,58 @@ class Config:
     # HackRx API Key
     HACKRX_API_KEY = os.getenv("HACKRX_API_KEY")
     
-    # Model Settings - Optimized for better accuracy
-    MAX_TOKENS = int(os.getenv("MAX_TOKENS", "6000"))  # Increased for more detailed answers
-    TEMPERATURE = float(os.getenv("TEMPERATURE", "0.3"))  # Increased for more creative responses
+    # Model Settings - Optimized for SPEED + Accuracy
+    MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4000"))  # Reduced for faster responses
+    TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))  # Keep low for accuracy
     
-    # Enhanced Document Processing - Optimized for policy documents
-    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1200"))  # Increased for better context
-    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "300"))  # Increased overlap
-    MAX_CHUNKS_PER_DOCUMENT = int(os.getenv("MAX_CHUNKS_PER_DOCUMENT", "1500"))  # Increased limit
+    # Enhanced Document Processing - Optimized for SPEED
+    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))  # Reduced for faster processing
+    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))  # Reduced overlap
+    MAX_CHUNKS_PER_DOCUMENT = int(os.getenv("MAX_CHUNKS_PER_DOCUMENT", "1000"))  # Reduced limit
     
-    # Enhanced Search Settings - Optimized for better retrieval
-    TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "20"))  # Increased for more context
-    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))  # Increased for better quality
+    # Enhanced Search Settings - Optimized for SPEED
+    TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "8"))  # Reduced for faster search
+    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.4"))  # Increased for better quality
     
-    # API Settings - Optimized for rate limiting
-    API_TIMEOUT = int(os.getenv("API_TIMEOUT", "60"))  # Increased timeout
-    MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "5"))  # Reduced for rate limiting
+    # API Settings - Optimized for SPEED
+    API_TIMEOUT = int(os.getenv("API_TIMEOUT", "30"))  # Reduced timeout
+    MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))  # Increased for parallel processing
     
-    # Cache Settings
+    # Cache Settings - Enhanced for SPEED
     ENABLE_CACHE = os.getenv("ENABLE_CACHE", "True").lower() == "true"
-    CACHE_TTL = int(os.getenv("CACHE_TTL", "3600"))
+    CACHE_TTL = int(os.getenv("CACHE_TTL", "7200"))  # Increased cache time
     
     # Vector Database Settings
     EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "3072"))
+    
+    # Performance Optimization Settings
+    EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "20"))  # Increased batch size
+    QDRANT_BATCH_SIZE = int(os.getenv("QDRANT_BATCH_SIZE", "10"))  # Optimized batch size
+    ENABLE_RESPONSE_CACHE = os.getenv("ENABLE_RESPONSE_CACHE", "True").lower() == "true"
+    RESPONSE_CACHE_TTL = int(os.getenv("RESPONSE_CACHE_TTL", "3600"))
+    
+    # Enhanced Search Settings
+    ENABLE_QUERY_VARIATIONS = os.getenv("ENABLE_QUERY_VARIATIONS", "True").lower() == "true"
+    MAX_QUERY_VARIATIONS = int(os.getenv("MAX_QUERY_VARIATIONS", "3"))
+    ENABLE_ENHANCED_SCORING = os.getenv("ENABLE_ENHANCED_SCORING", "True").lower() == "true"
+    
+    # Advanced LLM Settings
+    ENABLE_FALLBACK_PROMPTS = os.getenv("ENABLE_FALLBACK_PROMPTS", "True").lower() == "true"
+    MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
+    ENABLE_ANSWER_VALIDATION = os.getenv("ENABLE_ANSWER_VALIDATION", "True").lower() == "true"
+    
+    # Robustness Settings
+    ENABLE_MULTIPLE_SEARCH_STRATEGIES = os.getenv("ENABLE_MULTIPLE_SEARCH_STRATEGIES", "True").lower() == "true"
+    ENABLE_SYNONYM_EXPANSION = os.getenv("ENABLE_SYNONYM_EXPANSION", "True").lower() == "true"
+    ENABLE_ENTITY_BOOSTING = os.getenv("ENABLE_ENTITY_BOOSTING", "True").lower() == "true"
+    
+    # Quality Assurance Settings
+    MIN_ANSWER_LENGTH = int(os.getenv("MIN_ANSWER_LENGTH", "50"))
+    MAX_ANSWER_LENGTH = int(os.getenv("MAX_ANSWER_LENGTH", "1000"))
+    ENABLE_ANSWER_QUALITY_CHECK = os.getenv("ENABLE_ANSWER_QUALITY_CHECK", "True").lower() == "true"
+    
+    # Speed vs Accuracy Balance Settings
+    SPEED_PRIORITY = os.getenv("SPEED_PRIORITY", "False").lower() == "true"  # Set to True for speed over accuracy
+    MAX_QUERY_VARIATIONS = int(os.getenv("MAX_QUERY_VARIATIONS", "3")) if not os.getenv("SPEED_PRIORITY", "False").lower() == "true" else 1
+    ENABLE_ENHANCED_PROMPTS = os.getenv("ENABLE_ENHANCED_PROMPTS", "True").lower() == "true"
+    ENABLE_QUERY_VARIATIONS = os.getenv("ENABLE_QUERY_VARIATIONS", "True").lower() == "true" and not os.getenv("SPEED_PRIORITY", "False").lower() == "true"

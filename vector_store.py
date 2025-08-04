@@ -7,6 +7,8 @@ from models import DocumentChunk
 from config import Config
 import logging
 import uuid
+import hashlib
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +17,8 @@ class VectorStore:
         self.config = Config()
         self.client = None
         self.embedding_client = None
+        self.embedding_cache = {}  # Cache for embeddings
+        self.response_cache = {}   # Cache for search responses
         self._initialize_clients()
     
     def _initialize_clients(self):
@@ -48,14 +52,14 @@ class VectorStore:
                     host=self.config.QDRANT_HOST,
                     port=self.config.QDRANT_PORT,
                     api_key=self.config.QDRANT_API_KEY,
-                    timeout=120.0  # Increased to 120 seconds for large documents
+                    timeout=60.0  # Reduced timeout for faster responses
                 )
             else:
                 # Local Qdrant without API key
                 self.client = QdrantClient(
                     host=self.config.QDRANT_HOST,
                     port=self.config.QDRANT_PORT,
-                    timeout=120.0  # Increased to 120 seconds for large documents
+                    timeout=60.0  # Reduced timeout for faster responses
                 )
             
             # Test Qdrant connection
@@ -101,25 +105,57 @@ class VectorStore:
             logger.error(f"❌ Error initializing Qdrant collection: {e}")
             raise Exception(f"Failed to initialize Qdrant collection: {str(e)}")
     
+    def _get_cached_embedding(self, text: str) -> Optional[List[float]]:
+        """Get cached embedding if available"""
+        text_hash = hashlib.md5(text.encode()).hexdigest()
+        return self.embedding_cache.get(text_hash)
+    
+    def _cache_embedding(self, text: str, embedding: List[float]):
+        """Cache embedding"""
+        text_hash = hashlib.md5(text.encode()).hexdigest()
+        self.embedding_cache[text_hash] = embedding
+    
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using OpenAI text-embedding-3-large"""
+        """Generate embeddings using OpenAI text-embedding-3-large with caching"""
         try:
             embeddings = []
+            uncached_texts = []
+            uncached_indices = []
             
-            # Process texts in batches to avoid rate limits
-            batch_size = 10
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
-                
-                response = self.embedding_client.embeddings.create(
-                    model=self.config.EMBEDDING_MODEL,
-                    input=batch
-                )
-                
-                batch_embeddings = [embedding.embedding for embedding in response.data]
-                embeddings.extend(batch_embeddings)
+            # Check cache first
+            for i, text in enumerate(texts):
+                cached_embedding = self._get_cached_embedding(text)
+                if cached_embedding:
+                    embeddings.append(cached_embedding)
+                else:
+                    uncached_texts.append(text)
+                    uncached_indices.append(i)
+                    embeddings.append(None)  # Placeholder
             
-            logger.info(f"✅ Generated {len(embeddings)} embeddings using OpenAI")
+            # Generate embeddings for uncached texts
+            if uncached_texts:
+                logger.info(f"📊 Generating embeddings for {len(uncached_texts)} uncached texts...")
+                
+                # Process texts in larger batches for efficiency
+                batch_size = self.config.EMBEDDING_BATCH_SIZE
+                for i in range(0, len(uncached_texts), batch_size):
+                    batch = uncached_texts[i:i + batch_size]
+                    
+                    response = self.embedding_client.embeddings.create(
+                        model=self.config.EMBEDDING_MODEL,
+                        input=batch
+                    )
+                    
+                    batch_embeddings = [embedding.embedding for embedding in response.data]
+                    
+                    # Cache and store embeddings
+                    for j, (text, embedding) in enumerate(zip(batch, batch_embeddings)):
+                        global_index = i + j
+                        original_index = uncached_indices[global_index]
+                        embeddings[original_index] = embedding
+                        self._cache_embedding(text, embedding)
+            
+            logger.info(f"✅ Generated {len(embeddings)} embeddings using OpenAI (with caching)")
             return embeddings
             
         except Exception as e:
@@ -127,7 +163,7 @@ class VectorStore:
             raise Exception(f"Failed to generate embeddings: {str(e)}")
     
     def store_chunks(self, chunks: List[DocumentChunk]) -> bool:
-        """Store document chunks in Qdrant vector database"""
+        """Store document chunks in Qdrant vector database with optimized batching"""
         try:
             logger.info(f"🚀 Starting to store {len(chunks)} chunks in Qdrant...")
             
@@ -161,8 +197,8 @@ class VectorStore:
                 )
                 points.append(point)
             
-            # Upsert points in batches
-            batch_size = 5  # Reduced for large documents to avoid timeouts
+            # Upsert points in optimized batches
+            batch_size = self.config.QDRANT_BATCH_SIZE
             total_batches = (len(points) + batch_size - 1) // batch_size
             logger.info(f"📦 Upserting {len(points)} points in {total_batches} batches...")
             
@@ -172,7 +208,7 @@ class VectorStore:
                 logger.info(f"📤 Processing batch {batch_num}/{total_batches} ({len(batch)} points)...")
                 
                 # Add retry logic for timeouts
-                max_retries = 5  # Increased retries for hackathon
+                max_retries = 3  # Reduced retries for faster processing
                 for retry in range(max_retries):
                     try:
                         self.client.upsert(
@@ -186,7 +222,7 @@ class VectorStore:
                         if ("timeout" in str(e).lower() or "timed out" in str(e).lower()) and retry < max_retries - 1:
                             logger.warning(f"⚠️  Batch {batch_num} timeout, retrying ({retry + 1}/{max_retries})...")
                             import time
-                            time.sleep(10)  # Wait longer before retry for large docs
+                            time.sleep(5)  # Reduced wait time
                         else:
                             logger.error(f"❌ Batch {batch_num} failed after {retry + 1} attempts: {e}")
                             raise e
@@ -198,46 +234,203 @@ class VectorStore:
             logger.error(f"❌ Error storing chunks in Qdrant: {e}")
             raise Exception(f"Failed to store chunks in Qdrant: {str(e)}")
     
+    def _get_cached_response(self, query: str) -> Optional[List[Dict[str, Any]]]:
+        """Get cached search response if available"""
+        if not self.config.ENABLE_RESPONSE_CACHE:
+            return None
+        
+        query_hash = hashlib.md5(query.encode()).hexdigest()
+        cached_data = self.response_cache.get(query_hash)
+        
+        if cached_data and time.time() - cached_data['timestamp'] < self.config.RESPONSE_CACHE_TTL:
+            return cached_data['response']
+        
+        return None
+    
+    def _cache_response(self, query: str, response: List[Dict[str, Any]]):
+        """Cache search response"""
+        if not self.config.ENABLE_RESPONSE_CACHE:
+            return
+        
+        query_hash = hashlib.md5(query.encode()).hexdigest()
+        self.response_cache[query_hash] = {
+            'response': response,
+            'timestamp': time.time()
+        }
+    
     def search_similar(self, query: str, top_k: int = None) -> List[Dict[str, Any]]:
-        """Search for similar chunks using semantic similarity"""
+        """Enhanced search for similar chunks using multiple strategies"""
         try:
+            # Check cache first
+            cached_response = self._get_cached_response(query)
+            if cached_response:
+                logger.info(f"✅ Using cached response for query: '{query[:50]}...'")
+                return cached_response
+            
             logger.info(f"🔍 Searching Qdrant for query: '{query[:50]}...'")
             
-            # Generate query embedding
+            # Strategy 1: Generate query embedding
             query_embedding = self.generate_embeddings([query])[0]
             logger.info(f"📊 Generated query embedding successfully")
             
-            # Search in Qdrant
+            # Strategy 2: Multiple search approaches
+            search_results = []
+            
+            # Primary search with original query
             top_k = top_k or self.config.TOP_K_RESULTS
             logger.info(f"🔎 Querying Qdrant with top_k={top_k}...")
             
-            results = self.client.search(
+            primary_results = self.client.search(
                 collection_name=self.config.QDRANT_COLLECTION_NAME,
                 query_vector=query_embedding,
                 limit=top_k,
                 with_payload=True
             )
+            search_results.extend(primary_results)
             
-            # Process results
-            similar_chunks = []
-            for result in results:
-                if result.score >= self.config.SIMILARITY_THRESHOLD:
-                    similar_chunks.append({
-                        "content": result.payload.get("content", ""),
-                        "score": result.score,
-                        "metadata": result.payload,
-                        "chunk_id": result.payload.get("original_chunk_id", str(result.id))  # Use original chunk ID from metadata
-                    })
+            # Strategy 3: Enhanced query variations for better retrieval
+            query_variations = self._generate_query_variations(query) if self.config.ENABLE_QUERY_VARIATIONS else []
+            for variation in query_variations[:self.config.MAX_QUERY_VARIATIONS]:  # Limit to configured variations
+                try:
+                    variation_embedding = self.generate_embeddings([variation])[0]
+                    variation_results = self.client.search(
+                        collection_name=self.config.QDRANT_COLLECTION_NAME,
+                        query_vector=variation_embedding,
+                        limit=top_k // 2,  # Half the results for variations
+                        with_payload=True
+                    )
+                    search_results.extend(variation_results)
+                except Exception as e:
+                    logger.warning(f"⚠️  Variation search failed: {e}")
             
-            logger.info(f"✅ Found {len(similar_chunks)} similar chunks for query using Qdrant (threshold: {self.config.SIMILARITY_THRESHOLD})")
+            # Strategy 4: Process and deduplicate results
+            similar_chunks = self._process_search_results(search_results)
+            
+            # Cache the response
+            self._cache_response(query, similar_chunks)
+            
+            logger.info(f"✅ Found {len(similar_chunks)} similar chunks for query using enhanced search (threshold: {self.config.SIMILARITY_THRESHOLD})")
             return similar_chunks
             
         except Exception as e:
             logger.error(f"❌ Error searching similar chunks in Qdrant: {e}")
             raise Exception(f"Failed to search chunks in Qdrant: {str(e)}")
     
+    def _generate_query_variations(self, query: str) -> List[str]:
+        """Generate query variations for better retrieval"""
+        variations = []
+        query_lower = query.lower()
+        
+        # Synonym-based variations
+        synonyms = {
+            "cover": ["coverage", "include", "provide", "benefit"],
+            "waiting period": ["wait", "time", "duration", "delay"],
+            "exclude": ["exclusion", "not covered", "restriction"],
+            "claim": ["claim process", "claim procedure", "submit"],
+            "policy": ["insurance", "coverage", "plan"],
+            "surgery": ["operation", "procedure", "treatment"],
+            "hospital": ["medical center", "clinic", "healthcare"],
+            "benefit": ["coverage", "advantage", "feature"],
+            "premium": ["payment", "amount", "cost"],
+            "coverage": ["benefit", "include", "cover"],
+            "exclusion": ["not covered", "restriction", "limitation"],
+            "waiting": ["wait", "delay", "period"]
+        }
+        
+        # Generate variations with synonyms
+        for original, syns in synonyms.items():
+            if original in query_lower:
+                for syn in syns:
+                    variation = query.replace(original, syn)
+                    if variation != query:
+                        variations.append(variation)
+        
+        # Question pattern variations
+        question_patterns = [
+            query.replace("what is", "how does"),
+            query.replace("how", "what"),
+            query.replace("when", "what time"),
+            query.replace("where", "in what location"),
+            query.replace("why", "what is the reason"),
+            query.replace("which", "what"),
+            query.replace("is there", "does this include"),
+            query.replace("does this", "is this"),
+            query.replace("will this", "does this"),
+            query.replace("can this", "does this")
+        ]
+        variations.extend(question_patterns)
+        
+        # Add policy-specific variations
+        policy_variations = [
+            f"policy {query}",
+            f"insurance {query}",
+            f"coverage {query}",
+            f"benefit {query}",
+            f"claim {query}",
+            f"exclusion {query}",
+            f"waiting period {query}",
+            f"premium {query}"
+        ]
+        variations.extend(policy_variations)
+        
+        return list(set(variations))  # Remove duplicates
+    
+    def _process_search_results(self, search_results: List) -> List[Dict[str, Any]]:
+        """Process and deduplicate search results with enhanced scoring"""
+        processed_chunks = {}
+        
+        for result in search_results:
+            content = result.payload.get("content", "")
+            score = result.score
+            chunk_id = result.payload.get("original_chunk_id", str(result.id))
+            
+            # Skip if already processed with higher score
+            if chunk_id in processed_chunks and processed_chunks[chunk_id]["score"] >= score:
+                continue
+            
+            # Enhanced relevance scoring
+            enhanced_score = self._calculate_enhanced_relevance_score(content, score)
+            
+            if enhanced_score >= self.config.SIMILARITY_THRESHOLD:
+                processed_chunks[chunk_id] = {
+                    "content": content,
+                    "score": enhanced_score,
+                    "metadata": result.payload,
+                    "chunk_id": chunk_id
+                }
+        
+        # Sort by enhanced score
+        similar_chunks = list(processed_chunks.values())
+        similar_chunks.sort(key=lambda x: x["score"], reverse=True)
+        
+        return similar_chunks
+    
+    def _calculate_enhanced_relevance_score(self, content: str, base_score: float) -> float:
+        """Calculate enhanced relevance score based on multiple factors"""
+        enhanced_score = base_score
+        
+        # Factor 1: Content length (longer content might be more relevant)
+        content_length_factor = min(len(content) / 1000, 0.1)  # Max 0.1 boost
+        enhanced_score += content_length_factor
+        
+        # Factor 2: Policy-specific terms boost
+        policy_terms = ["policy", "coverage", "benefit", "claim", "exclusion", "waiting period", 
+                       "premium", "sum insured", "deductible", "room rent", "icu", "surgery"]
+        policy_term_count = sum(1 for term in policy_terms if term.lower() in content.lower())
+        policy_boost = min(policy_term_count * 0.05, 0.2)  # Max 0.2 boost
+        enhanced_score += policy_boost
+        
+        # Factor 3: Specific details boost
+        detail_indicators = ["rs", "rupees", "percent", "%", "days", "months", "years", 
+                           "clause", "section", "condition", "limitation"]
+        detail_count = sum(1 for indicator in detail_indicators if indicator.lower() in content.lower())
+        detail_boost = min(detail_count * 0.02, 0.1)  # Max 0.1 boost
+        enhanced_score += detail_boost
+        
+        return min(enhanced_score, 1.0)  # Cap at 1.0
+    
     def search_universal(self, query: str, top_k: int = None) -> List[Dict[str, Any]]:
-        """Universal search strategy for ANY question type"""
+        """Universal search strategy for ANY question type with caching"""
         try:
             # For Qdrant, we'll use the same semantic search as it's already optimized
             return self.search_similar(query, top_k)

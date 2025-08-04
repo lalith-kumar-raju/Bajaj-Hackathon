@@ -595,6 +595,7 @@ except Exception as e:
 # Add caching for processed documents
 document_cache = {}
 embedding_cache = {}
+response_cache = {}  # Cache for API responses
 
 # Cache for processed documents
 def get_cached_document(document_id: str) -> Optional[Dict[str, Any]]:
@@ -606,6 +607,27 @@ def cache_document(document_id: str, chunks: List[Dict[str, Any]]):
     document_cache[document_id] = {
         "chunks": chunks,
         "timestamp": time.time()
+    }
+
+def get_cached_response(request_hash: str) -> Optional[Dict[str, Any]]:
+    """Get cached API response if available"""
+    if not config.ENABLE_RESPONSE_CACHE:
+        return None
+    
+    cached_data = response_cache.get(request_hash)
+    if cached_data and time.time() - cached_data['timestamp'] < config.RESPONSE_CACHE_TTL:
+        return cached_data['response']
+    
+    return None
+
+def cache_response(request_hash: str, response: Dict[str, Any]):
+    """Cache API response"""
+    if not config.ENABLE_RESPONSE_CACHE:
+        return
+    
+    response_cache[request_hash] = {
+        'response': response,
+        'timestamp': time.time()
     }
 
 async def verify_api_key(authorization: Optional[str] = Header(None)):
@@ -754,6 +776,17 @@ async def run_hackrx(
         if credentials.credentials != config.HACKRX_API_KEY:
             raise HTTPException(status_code=401, detail="Invalid API key")
         
+        # Create request hash for caching
+        import hashlib
+        request_data = f"{request.documents}_{'_'.join(request.questions)}"
+        request_hash = hashlib.md5(request_data.encode()).hexdigest()
+        
+        # Check response cache first
+        cached_response = get_cached_response(request_hash)
+        if cached_response:
+            logger.info(f"✅ Using cached response for request")
+            return cached_response
+        
         # Check if document is already processed
         document_id = hashlib.md5(request.documents.encode()).hexdigest()
         
@@ -810,9 +843,14 @@ async def run_hackrx(
         
         processing_time = time.time() - start_time
         
-        return {
+        response = {
             "answers": answers
         }
+        
+        # Cache the response
+        cache_response(request_hash, response)
+        
+        return response
         
     except Exception as e:
         logger.error(f"Error processing request: {e}")
