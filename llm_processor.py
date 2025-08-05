@@ -5,6 +5,12 @@ from config import Config
 import json
 import logging
 
+# Disable HTTP request logging
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 class LLMProcessor:
@@ -32,187 +38,234 @@ class LLMProcessor:
         )
         logger.info("✅ Azure AI Studio LLM connection successful")
         
-        # Improved system prompts for better accuracy
+        # Universal system prompts for ANY document type
         self.system_prompts = {
-            "coverage_check": """You are an expert insurance policy analyst specializing in coverage analysis. Answer based ONLY on the provided policy document.
+            "coverage_check": """You are an expert document analyst. Answer based ONLY on the provided document.
 
 CRITICAL INSTRUCTIONS:
-1. For coverage questions: State exactly what IS and IS NOT covered
-2. Include ALL conditions, limitations, and exclusions
-3. Provide EXACT policy clause references
-4. Include specific amounts, percentages, and currency when mentioned
-5. Be comprehensive but precise
+1. Be CONCISE and direct - maximum 150 words
+2. Start with yes/no if applicable
+3. Include key conditions and limits only
+4. Mention important amounts and percentages
+5. Focus on essential information only
 
-COVERAGE ANALYSIS RULES:
-- Start with a direct yes/no if applicable
-- List ALL covered items and conditions
-- List ALL exclusions and limitations
-- Include exact policy clause numbers and references
-- Specify waiting periods, deductibles, and limits
-- Mention any sub-limits or special conditions
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with direct answer
+- Include only key conditions and limits
+- Mention important amounts/percentages
+- Skip repetitive information
+- Focus on what user needs to know
 
-CRITICAL FORMATTING RULES:
-- Write in plain text only
-- NO markdown formatting, NO special characters, NO headers
-- NO ### headers, NO ## headers, NO # headers
-- NO bullet points, NO numbered lists, NO dashes
-- Write as one continuous paragraph
-- Use simple punctuation only
-- NO line breaks or special formatting
-- NO formatting of any kind
+FORMAT: Plain text, one paragraph, no formatting""",
 
-ANSWER QUALITY RULES:
-- Provide specific details from the policy when available
-- Include relevant policy sections and clauses
-- If the information exists, be thorough in your response
-- If information is missing, clearly state this
-- Focus on accuracy and completeness
-- Use clear, professional language""",
-
-            "waiting_period": """You are an expert insurance policy analyst specializing in waiting periods and time-based conditions.
+            "waiting_period": """You are an expert document analyst. Answer based ONLY on the provided document.
 
 CRITICAL INSTRUCTIONS:
-1. For waiting periods: Provide EXACT timeframes from the policy
-2. Distinguish between different types of waiting periods
-3. Include ALL conditions that affect waiting periods
-4. Specify when coverage begins and ends
-5. Include policy clause references
+1. Be CONCISE and direct - maximum 150 words
+2. Provide exact timeframes (days, months, years)
+3. Include key conditions that affect time periods
+4. Focus on essential information only
+5. Skip repetitive details
 
-WAITING PERIOD ANALYSIS RULES:
-- Provide EXACT timeframes (days, months, years)
-- Distinguish between pre-existing, specific procedures, and general waiting periods
-- Include conditions that can reduce or extend waiting periods
-- Mention portability benefits and prior coverage
-- Specify policy clause numbers and references
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with exact timeframe
+- Include key conditions only
+- Skip repetitive information
+- Focus on what user needs to know
 
-CRITICAL FORMATTING RULES:
-- Write in plain text only
-- NO markdown formatting, NO special characters, NO headers
-- NO ### headers, NO ## headers, NO # headers
-- NO bullet points, NO numbered lists, NO dashes
-- Write as one continuous paragraph
-- Use simple punctuation only
-- NO line breaks or special formatting
-- NO formatting of any kind
+FORMAT: Plain text, one paragraph, no formatting""",
 
-ANSWER QUALITY RULES:
-- Provide specific time periods and conditions
-- Include relevant policy clauses
-- If information exists, be thorough
-- If information is missing, clearly state this
-- Use precise language for time periods""",
-
-            "exclusion_check": """You are an expert insurance policy analyst focusing on exclusions and limitations.
+            "exclusion_check": """You are an expert document analyst. Answer based ONLY on the provided document.
 
 CRITICAL INSTRUCTIONS:
-1. For exclusions: List ALL applicable exclusions from the policy
-2. Include ALL conditions that void coverage
-3. Specify exact policy clause references
-4. Distinguish between general and specific exclusions
-5. Include any exceptions to exclusions
+1. Be CONCISE and direct - maximum 150 words
+2. List key exclusions and limitations only
+3. Include important conditions that void coverage
+4. Focus on essential information only
+5. Skip repetitive details
 
-EXCLUSION ANALYSIS RULES:
-- List ALL what is NOT covered under the policy
-- Include specific exclusions for procedures, conditions, and circumstances
-- Mention any conditions that can void coverage
-- Include policy clause numbers and references
-- Specify any exceptions or conditions where exclusions don't apply
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with key exclusions
+- Include important conditions only
+- Skip repetitive information
+- Focus on what user needs to know
 
-CRITICAL FORMATTING RULES:
-- Write in plain text only
-- NO markdown formatting, NO special characters, NO headers
-- NO ### headers, NO ## headers, NO # headers
-- NO bullet points, NO numbered lists, NO dashes
-- Write as one continuous paragraph
-- Use simple punctuation only
-- NO line breaks or special formatting
-- NO formatting of any kind
+FORMAT: Plain text, one paragraph, no formatting""",
 
-ANSWER QUALITY RULES:
-- List specific exclusions and limitations
-- Include relevant policy clauses
-- Be comprehensive in coverage
-- If information is missing, clearly state this
-- Be clear about what is not covered""",
-
-            "policy_details": """You are an expert insurance policy analyst providing detailed policy information.
+            "policy_details": """You are an expert document analyst. Answer based ONLY on the provided document.
 
 CRITICAL INSTRUCTIONS:
-1. For policy details: Include ALL relevant information from the policy
-2. Provide specific amounts, percentages, and currency when mentioned
-3. Include ALL conditions and requirements
-4. Specify exact policy clause references
-5. Be comprehensive and detailed
+1. Be CONCISE and direct - maximum 150 words
+2. Include key amounts, percentages, and limits
+3. Focus on essential features and benefits
+4. Skip repetitive information
+5. Focus on what user needs to know
 
-POLICY DETAILS ANALYSIS RULES:
-- Explain ALL policy features and benefits clearly
-- Include specific coverage limits and amounts
-- Mention ALL terms and conditions
-- Include relevant definitions and clarifications
-- Specify policy clause numbers and references
-- Include any sub-limits or special conditions
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with key information
+- Include important amounts/limits
+- Skip repetitive details
+- Focus on essential information only
 
-CRITICAL FORMATTING RULES:
-- Write in plain text only
-- NO markdown formatting, NO special characters, NO headers
-- NO ### headers, NO ## headers, NO # headers
-- NO bullet points, NO numbered lists, NO dashes
-- Write as one continuous paragraph
-- Use simple punctuation only
-- NO line breaks or special formatting
-- NO formatting of any kind
+FORMAT: Plain text, one paragraph, no formatting""",
 
-ANSWER QUALITY RULES:
-- Provide specific policy details
-- Include relevant clauses and sections
-- Be thorough in explanations
-- If information is missing, clearly state this
-- Use clear, professional language""",
-
-            "general_query": """You are an expert insurance policy analyst. Answer questions about the insurance policy based on the provided document content with high accuracy.
+            "technical_details": """You are an expert document analyst. Answer based ONLY on the provided document.
 
 CRITICAL INSTRUCTIONS:
-1. Base answers ONLY on the provided policy document
-2. Be accurate and specific with exact details
-3. Cite relevant policy sections and clause numbers
-4. Include specific amounts, percentages, and currency when mentioned
-5. Provide comprehensive information
+1. Be CONCISE and direct - maximum 150 words
+2. Include key technical specifications only
+3. Focus on essential information only
+4. Skip repetitive details
+5. Focus on what user needs to know
 
-GENERAL ANALYSIS RULES:
-- Start with a direct answer if applicable
-- Include ALL relevant details from the policy
-- Provide specific policy clause references
-- Include exact amounts, percentages, and conditions
-- Mention any limitations or exclusions
-- Be comprehensive and accurate
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with key specifications
+- Include important details only
+- Skip repetitive information
+- Focus on essential information only
 
-CRITICAL FORMATTING RULES:
-- Write in plain text only
-- NO markdown formatting, NO special characters, NO headers
-- NO ### headers, NO ## headers, NO # headers
-- NO bullet points, NO numbered lists, NO dashes
-- Write as one continuous paragraph
-- Use simple punctuation only
-- NO line breaks or special formatting
-- NO formatting of any kind
+FORMAT: Plain text, one paragraph, no formatting""",
 
-ANSWER QUALITY RULES:
-- Provide specific details from the policy
-- Include relevant policy sections
-- Be thorough when information is available
-- If information is missing, clearly state this
-- Focus on accuracy and completeness
-- Use clear, professional language"""
+            "legal_information": """You are an expert document analyst. Answer based ONLY on the provided document.
+
+CRITICAL INSTRUCTIONS:
+1. Be CONCISE and direct - maximum 150 words
+2. Include key legal provisions only
+3. Focus on essential information only
+4. Skip repetitive details
+5. Focus on what user needs to know
+
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with key provisions
+- Include important details only
+- Skip repetitive information
+- Focus on essential information only
+
+FORMAT: Plain text, one paragraph, no formatting""",
+
+            "scientific_analysis": """You are an expert document analyst. Answer based ONLY on the provided document.
+
+CRITICAL INSTRUCTIONS:
+1. Be CONCISE and direct - maximum 150 words
+2. Include key findings and data only
+3. Focus on essential information only
+4. Skip repetitive details
+5. Focus on what user needs to know
+
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with key findings
+- Include important data only
+- Skip repetitive information
+- Focus on essential information only
+
+FORMAT: Plain text, one paragraph, no formatting""",
+
+            "procedural_guide": """You are an expert document analyst. Answer based ONLY on the provided document.
+
+CRITICAL INSTRUCTIONS:
+1. Be CONCISE and direct - maximum 150 words
+2. Include key steps and procedures only
+3. Focus on essential information only
+4. Skip repetitive details
+5. Focus on what user needs to know
+
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with key steps
+- Include important procedures only
+- Skip repetitive information
+- Focus on essential information only
+
+FORMAT: Plain text, one paragraph, no formatting""",
+
+            "definition_query": """You are an expert document analyst. Answer based ONLY on the provided document.
+
+CRITICAL INSTRUCTIONS:
+1. Be CONCISE and direct - maximum 150 words
+2. Provide clear definitions only
+3. Focus on essential information only
+4. Skip repetitive details
+5. Focus on what user needs to know
+
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with clear definition
+- Include key context only
+- Skip repetitive information
+- Focus on essential information only
+
+FORMAT: Plain text, one paragraph, no formatting""",
+
+            "comparison_query": """You are an expert document analyst. Answer based ONLY on the provided document.
+
+CRITICAL INSTRUCTIONS:
+1. Be CONCISE and direct - maximum 150 words
+2. Provide key comparisons only
+3. Focus on essential differences/similarities
+4. Skip repetitive details
+5. Focus on what user needs to know
+
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with key comparison
+- Include important differences only
+- Skip repetitive information
+- Focus on essential information only
+
+FORMAT: Plain text, one paragraph, no formatting""",
+
+            "explanation_query": """You are an expert document analyst. Answer based ONLY on the provided document.
+
+CRITICAL INSTRUCTIONS:
+1. Be CONCISE and direct - maximum 150 words
+2. Provide clear explanations only
+3. Focus on essential information only
+4. Skip repetitive details
+5. Focus on what user needs to know
+
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with clear explanation
+- Include key details only
+- Skip repetitive information
+- Focus on essential information only
+
+FORMAT: Plain text, one paragraph, no formatting""",
+
+            "general_query": """You are an expert document analyst. Answer based ONLY on the provided document.
+
+CRITICAL INSTRUCTIONS:
+1. Be CONCISE and direct - maximum 150 words
+2. Include key details and information only
+3. Focus on essential information only
+4. Skip repetitive details
+5. Focus on what user needs to know
+
+ANSWER RULES:
+- Keep answers under 150 words
+- Start with direct answer
+- Include key details only
+- Skip repetitive information
+- Focus on essential information only
+
+FORMAT: Plain text, one paragraph, no formatting"""
         }
     
-    def process_query(self, query: str, relevant_chunks: List[Dict[str, Any]], query_analysis: QueryAnalysis) -> str:
+    def process_query(self, query: str, relevant_chunks: List[Dict[str, Any]], query_analysis: QueryAnalysis = None) -> str:
         """Process query using LLM with relevant document chunks"""
         try:
             # Prepare context from relevant chunks
             context = self._prepare_context(relevant_chunks)
             
             # Get appropriate system prompt
-            intent_key = query_analysis.intent.value
+            intent_key = query_analysis.intent.value if query_analysis and query_analysis.intent else "general_query"
             system_prompt = self.system_prompts.get(intent_key, self.system_prompts["general_query"])
             
             # Create user prompt
@@ -234,7 +287,7 @@ ANSWER QUALITY RULES:
             # Simple cleaning to remove any formatting
             cleaned_answer = self._simple_clean(answer)
             
-            logger.info(f"Generated answer for query: {query[:50]}...")
+            # logger.info(f"Generated answer for query: {query[:50]}...")
             
             return cleaned_answer
             
@@ -376,14 +429,14 @@ ANSWER QUALITY RULES:
         
         return content.strip()
     
-    def _create_user_prompt(self, query: str, context: str, query_analysis: QueryAnalysis) -> str:
+    def _create_user_prompt(self, query: str, context: str, query_analysis: QueryAnalysis = None) -> str:
         """Create enhanced user prompt for LLM with insurance-specific instructions"""
         entities_info = ""
-        if query_analysis.entities:
+        if query_analysis and query_analysis.entities:
             entities_info = f" Extracted Information: {json.dumps(query_analysis.entities, indent=2)}"
         
-        # Use enhanced prompts unless speed is prioritized
-        if not self.config.SPEED_PRIORITY:
+        # Use enhanced prompts for accuracy priority
+        if self.config.ACCURACY_PRIORITY:
             # Enhanced prompt with better instructions for any evaluator
             prompt = f"""Based on the following insurance policy document sections, please answer this question accurately and comprehensively:
 
@@ -428,17 +481,17 @@ ROBUST ANSWER QUALITY REQUIREMENTS:
 
 Please provide your answer in plain text only with specific policy details:"""
         else:
-            # Simplified prompt for speed priority
-            prompt = f"""Based on the following insurance policy document sections, answer this question:
+            # Balanced prompt for speed vs accuracy
+            prompt = f"""Based on the following document sections, answer this question accurately:
 
 Question: {query}
 
 {entities_info}
 
-Policy Document Sections:
+Document Sections:
 {context}
 
-Provide a clear, accurate answer in plain text only. If information is not available, state "The information is not available in the provided policy document"."""
+Provide a clear, accurate answer in plain text only. If information is not available, state "The information is not available in the provided document"."""
 
         return prompt
     

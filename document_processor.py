@@ -14,6 +14,12 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Disable HTTP request logging
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 class DocumentProcessor:
     def __init__(self):
         self.config = Config()
@@ -166,7 +172,7 @@ class DocumentProcessor:
     
     def process_document(self, url: str) -> List[DocumentChunk]:
         """Main method to process document from URL"""
-        logger.info(f"Processing document from URL: {url}")
+        # logger.info(f"Processing document from URL: {url}")
         
         # Download document
         content = self.download_document(url)

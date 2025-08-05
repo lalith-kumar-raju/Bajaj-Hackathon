@@ -18,7 +18,7 @@ class QueryAnalyzer:
             logger.warning("spaCy model not available, using basic NER")
             self.nlp = None
         
-        # Enhanced universal insurance keywords for ANY question type
+        # Enhanced universal keywords for ANY document type and question
         self.intent_keywords = {
             QueryIntent.COVERAGE_CHECK: [
                 "cover", "coverage", "covered", "include", "policy covers", "eligible", "pay", "reimburse",
@@ -54,6 +54,46 @@ class QueryAnalyzer:
                 "policy benefits", "policy limits", "policy coverage", "what is the policy",
                 "policy information", "policy details", "policy terms and conditions",
                 "policy features", "policy benefits", "policy coverage", "policy limits"
+            ],
+            QueryIntent.TECHNICAL_DETAILS: [
+                "technical", "specification", "spec", "specs", "technical details", "technical information",
+                "specifications", "technical specs", "technical data", "technical specifications",
+                "what are the specifications", "what are the specs", "technical details", "technical info",
+                "specification details", "technical specifications", "technical data", "technical information"
+            ],
+            QueryIntent.LEGAL_INFORMATION: [
+                "legal", "law", "legal information", "legal details", "legal provisions", "legal requirements",
+                "legal terms", "legal conditions", "legal rights", "legal duties", "legal obligations",
+                "what are the legal provisions", "what are the legal requirements", "legal information",
+                "legal details", "legal terms", "legal conditions", "legal rights", "legal duties"
+            ],
+            QueryIntent.SCIENTIFIC_ANALYSIS: [
+                "scientific", "research", "study", "analysis", "scientific analysis", "scientific information",
+                "scientific details", "scientific data", "scientific results", "scientific findings",
+                "what are the scientific findings", "what are the research results", "scientific analysis",
+                "scientific information", "scientific details", "scientific data", "scientific results"
+            ],
+            QueryIntent.PROCEDURAL_GUIDE: [
+                "procedure", "process", "step", "instruction", "guide", "how to", "procedural guide",
+                "procedural instructions", "step by step", "procedure steps", "process steps",
+                "what are the steps", "how to do", "procedure guide", "process guide", "instruction guide",
+                "step by step guide", "procedural instructions", "procedure steps", "process steps"
+            ],
+            QueryIntent.DEFINITION_QUERY: [
+                "define", "definition", "what is", "what does", "meaning", "explain", "describe",
+                "define the term", "what is the definition", "what does it mean", "explain the meaning",
+                "what is the meaning", "definition of", "meaning of", "explain what", "describe what"
+            ],
+            QueryIntent.COMPARISON_QUERY: [
+                "compare", "comparison", "difference", "similar", "different", "versus", "vs",
+                "what is the difference", "how are they different", "compare and contrast",
+                "what are the differences", "similarities and differences", "compare the",
+                "difference between", "similar to", "different from", "versus", "vs"
+            ],
+            QueryIntent.EXPLANATION_QUERY: [
+                "explain", "explanation", "how", "why", "what", "when", "where", "explain how",
+                "explain why", "explain what", "explain when", "explain where", "how does",
+                "why does", "what does", "when does", "where does", "explanation of", "explain the"
             ]
         }
         
@@ -370,40 +410,52 @@ class QueryAnalyzer:
         return synonyms
     
     def _calculate_enhanced_confidence(self, query: str, intent: QueryIntent, entities: Dict[str, Any]) -> float:
-        """Enhanced confidence calculation with multiple factors"""
+        """Enhanced confidence calculation with ACCURACY priority"""
         confidence = 0.5  # Base confidence
         
-        # Factor 1: Intent keyword matches
+        # Factor 1: Intent keyword matches (enhanced for accuracy)
         keywords = self.intent_keywords.get(intent, [])
         if keywords:
-            matches = sum(1 for keyword in keywords if keyword in query)
-            confidence += min(matches / len(keywords) * 0.3, 0.3)
+            matches = sum(1 for keyword in keywords if keyword.lower() in query.lower())
+            confidence += min(matches / len(keywords) * 0.4, 0.4)  # Increased weight
         
-        # Factor 2: Entity presence
+        # Factor 2: Entity presence (enhanced for accuracy)
         if entities:
-            confidence += min(len(entities) * 0.1, 0.2)
+            confidence += min(len(entities) * 0.15, 0.3)  # Increased weight
         
-        # Factor 3: Question pattern analysis
-        if any(word in query for word in ["what", "how", "when", "where", "why", "which"]):
-            confidence += 0.1
+        # Factor 3: Question pattern analysis (enhanced)
+        question_words = ["what", "how", "when", "where", "why", "which", "who", "whose"]
+        if any(word in query.lower() for word in question_words):
+            confidence += 0.15  # Increased weight
         
-        # Factor 4: Specific entity types
+        # Factor 4: Specific entity types (enhanced for accuracy)
         if entities.get("medical_terms"):
-            confidence += 0.1
+            confidence += 0.15
         if entities.get("time_periods"):
-            confidence += 0.1
+            confidence += 0.15
         if entities.get("amounts"):
+            confidence += 0.15
+        if entities.get("policy_terms"):
+            confidence += 0.15
+        
+        # Factor 5: Intent-specific boosts (enhanced for accuracy)
+        if intent == QueryIntent.COVERAGE_CHECK and any(word in query.lower() for word in ["cover", "coverage", "covered", "include", "provide"]):
+            confidence += 0.25
+        elif intent == QueryIntent.WAITING_PERIOD and any(word in query.lower() for word in ["waiting period", "wait", "time", "duration"]):
+            confidence += 0.3
+        elif intent == QueryIntent.EXCLUSION_CHECK and any(word in query.lower() for word in ["exclusion", "exclude", "not covered", "restriction"]):
+            confidence += 0.25
+        elif intent == QueryIntent.CLAIM_PROCESS and any(word in query.lower() for word in ["claim", "file", "submit", "process"]):
+            confidence += 0.25
+        
+        # Factor 6: Query complexity (new factor for accuracy)
+        if len(query.split()) > 8:  # Complex queries
             confidence += 0.1
         
-        # Factor 5: Intent-specific boosts
-        if intent == QueryIntent.COVERAGE_CHECK and any(word in query for word in ["cover", "coverage", "covered"]):
-            confidence += 0.2
-        elif intent == QueryIntent.WAITING_PERIOD and "waiting period" in query:
-            confidence += 0.3
-        elif intent == QueryIntent.EXCLUSION_CHECK and "exclusion" in query:
-            confidence += 0.2
-        elif intent == QueryIntent.CLAIM_PROCESS and "claim" in query:
-            confidence += 0.2
+        # Factor 7: Domain-specific terms (new factor for accuracy)
+        domain_terms = ["policy", "insurance", "coverage", "benefit", "premium", "claim", "exclusion"]
+        if any(term in query.lower() for term in domain_terms):
+            confidence += 0.1
         
         return min(confidence, 1.0)
     

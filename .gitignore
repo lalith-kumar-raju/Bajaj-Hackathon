@@ -94,3 +94,10 @@ build/
 dist/
 *.tar.gz
 *.zip
+
+# Document files
+Docs/
+*.txt
+*.pdf
+*.docx
+*.doc

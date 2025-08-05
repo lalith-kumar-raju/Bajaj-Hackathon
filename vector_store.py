@@ -10,6 +10,12 @@ import uuid
 import hashlib
 import time
 
+# Disable HTTP request logging
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 class VectorStore:
@@ -134,28 +140,23 @@ class VectorStore:
             
             # Generate embeddings for uncached texts
             if uncached_texts:
-                logger.info(f"📊 Generating embeddings for {len(uncached_texts)} uncached texts...")
+                # logger.info(f"📊 Generating embeddings for {len(uncached_texts)} uncached texts...")
                 
-                # Process texts in larger batches for efficiency
-                batch_size = self.config.EMBEDDING_BATCH_SIZE
-                for i in range(0, len(uncached_texts), batch_size):
-                    batch = uncached_texts[i:i + batch_size]
-                    
-                    response = self.embedding_client.embeddings.create(
-                        model=self.config.EMBEDDING_MODEL,
-                        input=batch
-                    )
-                    
-                    batch_embeddings = [embedding.embedding for embedding in response.data]
-                    
-                    # Cache and store embeddings
-                    for j, (text, embedding) in enumerate(zip(batch, batch_embeddings)):
-                        global_index = i + j
-                        original_index = uncached_indices[global_index]
-                        embeddings[original_index] = embedding
-                        self._cache_embedding(text, embedding)
+                # Single batch for faster processing
+                response = self.embedding_client.embeddings.create(
+                    model=self.config.EMBEDDING_MODEL,
+                    input=uncached_texts
+                )
+                
+                batch_embeddings = [embedding.embedding for embedding in response.data]
+                
+                # Cache and store embeddings
+                for j, (text, embedding) in enumerate(zip(uncached_texts, batch_embeddings)):
+                    original_index = uncached_indices[j]
+                    embeddings[original_index] = embedding
+                    self._cache_embedding(text, embedding)
             
-            logger.info(f"✅ Generated {len(embeddings)} embeddings using OpenAI (with caching)")
+                            # logger.info(f"✅ Generated {len(embeddings)} embeddings using OpenAI (with caching)")
             return embeddings
             
         except Exception as e:
@@ -165,13 +166,13 @@ class VectorStore:
     def store_chunks(self, chunks: List[DocumentChunk]) -> bool:
         """Store document chunks in Qdrant vector database with optimized batching"""
         try:
-            logger.info(f"🚀 Starting to store {len(chunks)} chunks in Qdrant...")
+            # logger.info(f"🚀 Starting to store {len(chunks)} chunks in Qdrant...")
             
             # Generate embeddings for chunks
             texts = [chunk.content for chunk in chunks]
-            logger.info(f"📊 Generating embeddings for {len(texts)} texts...")
+            # logger.info(f"📊 Generating embeddings for {len(texts)} texts...")
             embeddings = self.generate_embeddings(texts)
-            logger.info(f"✅ Generated {len(embeddings)} embeddings successfully")
+            # logger.info(f"✅ Generated {len(embeddings)} embeddings successfully")
             
             # Prepare points for Qdrant
             points = []
@@ -200,15 +201,15 @@ class VectorStore:
             # Upsert points in optimized batches
             batch_size = self.config.QDRANT_BATCH_SIZE
             total_batches = (len(points) + batch_size - 1) // batch_size
-            logger.info(f"📦 Upserting {len(points)} points in {total_batches} batches...")
+            # logger.info(f"📦 Upserting {len(points)} points in {total_batches} batches...")
             
             for i in range(0, len(points), batch_size):
                 batch = points[i:i + batch_size]
                 batch_num = (i // batch_size) + 1
-                logger.info(f"📤 Processing batch {batch_num}/{total_batches} ({len(batch)} points)...")
+                # logger.info(f"📤 Processing batch {batch_num}/{total_batches} ({len(batch)} points)...")
                 
                 # Add retry logic for timeouts
-                max_retries = 3  # Reduced retries for faster processing
+                max_retries = 3  # Balanced retries for reliability
                 for retry in range(max_retries):
                     try:
                         self.client.upsert(
@@ -216,18 +217,18 @@ class VectorStore:
                             points=batch,
                             wait=True  # Wait for operation to complete
                         )
-                        logger.info(f"✅ Batch {batch_num} stored successfully")
+                        # logger.info(f"✅ Batch {batch_num} stored successfully")
                         break  # Success, exit retry loop
                     except Exception as e:
                         if ("timeout" in str(e).lower() or "timed out" in str(e).lower()) and retry < max_retries - 1:
                             logger.warning(f"⚠️  Batch {batch_num} timeout, retrying ({retry + 1}/{max_retries})...")
                             import time
-                            time.sleep(5)  # Reduced wait time
+                            time.sleep(3)  # Balanced wait time
                         else:
                             logger.error(f"❌ Batch {batch_num} failed after {retry + 1} attempts: {e}")
                             raise e
             
-            logger.info(f"✅ Successfully stored {len(chunks)} chunks in Qdrant vector database")
+            logger.info(f"✅ Stored {len(chunks)} chunks in Qdrant")
             return True
             
         except Exception as e:
@@ -259,7 +260,7 @@ class VectorStore:
         }
     
     def search_similar(self, query: str, top_k: int = None) -> List[Dict[str, Any]]:
-        """Enhanced search for similar chunks using multiple strategies"""
+        """Enhanced search for similar chunks with ACCURACY priority"""
         try:
             # Check cache first
             cached_response = self._get_cached_response(query)
@@ -267,18 +268,18 @@ class VectorStore:
                 logger.info(f"✅ Using cached response for query: '{query[:50]}...'")
                 return cached_response
             
-            logger.info(f"🔍 Searching Qdrant for query: '{query[:50]}...'")
+            # logger.info(f"🔍 Searching Qdrant for query: '{query[:50]}...'")
             
-            # Strategy 1: Generate query embedding
+            # Generate query embedding
             query_embedding = self.generate_embeddings([query])[0]
-            logger.info(f"📊 Generated query embedding successfully")
+            # logger.info(f"📊 Generated query embedding successfully")
             
-            # Strategy 2: Multiple search approaches
+            # Multiple search strategies for better accuracy
             search_results = []
             
             # Primary search with original query
             top_k = top_k or self.config.TOP_K_RESULTS
-            logger.info(f"🔎 Querying Qdrant with top_k={top_k}...")
+            # logger.info(f"🔎 Querying Qdrant with top_k={top_k}...")
             
             primary_results = self.client.search(
                 collection_name=self.config.QDRANT_COLLECTION_NAME,
@@ -288,9 +289,9 @@ class VectorStore:
             )
             search_results.extend(primary_results)
             
-            # Strategy 3: Enhanced query variations for better retrieval
+            # Enhanced query variations for better retrieval accuracy
             query_variations = self._generate_query_variations(query) if self.config.ENABLE_QUERY_VARIATIONS else []
-            for variation in query_variations[:self.config.MAX_QUERY_VARIATIONS]:  # Limit to configured variations
+            for variation in query_variations[:self.config.MAX_QUERY_VARIATIONS]:
                 try:
                     variation_embedding = self.generate_embeddings([variation])[0]
                     variation_results = self.client.search(
@@ -303,13 +304,13 @@ class VectorStore:
                 except Exception as e:
                     logger.warning(f"⚠️  Variation search failed: {e}")
             
-            # Strategy 4: Process and deduplicate results
+            # Process and deduplicate results for accuracy
             similar_chunks = self._process_search_results(search_results)
             
             # Cache the response
             self._cache_response(query, similar_chunks)
             
-            logger.info(f"✅ Found {len(similar_chunks)} similar chunks for query using enhanced search (threshold: {self.config.SIMILARITY_THRESHOLD})")
+            # logger.info(f"✅ Found {len(similar_chunks)} similar chunks for query using enhanced search (threshold: {self.config.SIMILARITY_THRESHOLD})")
             return similar_chunks
             
         except Exception as e:

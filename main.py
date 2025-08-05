@@ -20,9 +20,17 @@ import PyPDF2
 import fitz  # PyMuPDF
 from docx import Document
 
+# Universal document processing - no specific document type detection
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Disable HTTP request logging
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 # Security scheme
 security = HTTPBearer()
@@ -566,6 +574,9 @@ class EnhancedQueryAnalyzer:
 config = Config()
 document_processor = EnhancedDocumentProcessor()
 
+# Universal document processing - no specific document type detection
+logger.info("✅ Universal document processor initialized successfully")
+
 # Initialize vector store with error handling
 vector_store = None
 try:
@@ -776,6 +787,10 @@ async def run_hackrx(
         if credentials.credentials != config.HACKRX_API_KEY:
             raise HTTPException(status_code=401, detail="Invalid API key")
         
+        # Log document link and queries
+        logger.info(f"📄 Document: {request.documents}")
+        logger.info(f"❓ Queries: {request.questions}")
+        
         # Create request hash for caching
         import hashlib
         request_data = f"{request.documents}_{'_'.join(request.questions)}"
@@ -795,6 +810,11 @@ async def run_hackrx(
             
             # Download and process document
             document_text = document_processor.download_document(request.documents)
+            
+            # Universal document processing - no specific document type detection
+            # logger.info(f"📄 Processing document with universal analyzer")
+            
+            # Use optimized chunking for all document types
             chunks = document_processor.chunk_text(document_text, document_id)
             
             # Convert dictionary chunks to DocumentChunk objects for vector store
@@ -819,12 +839,13 @@ async def run_hackrx(
                 "processed_at": time.time()
             }
         else:
-            logger.info(f"Using cached document: {request.documents}")
+            pass  # Using cached document
         
-        # Process each question
+        # Process each question with universal approach
         answers = []
+        
         for question in request.questions:
-            # Analyze query
+            # Universal query analysis - works for any document type
             query_analysis = query_analyzer.analyze_query(question)
             
             # Search for relevant chunks
@@ -832,7 +853,7 @@ async def run_hackrx(
             if vector_store:
                 relevant_chunks = vector_store.search_similar(question, config.TOP_K_RESULTS)
             
-            # Process with LLM
+            # Process with universal LLM - handles any document type
             answer = ""
             if llm_processor:
                 answer = llm_processor.process_query(question, relevant_chunks, query_analysis)
@@ -843,8 +864,12 @@ async def run_hackrx(
         
         processing_time = time.time() - start_time
         
+        # Log processing summary
+        logger.info(f"✅ Processing complete - {len(answers)} answers in {processing_time:.2f}s")
+        
         response = {
-            "answers": answers
+            "answers": answers,
+            "processing_time": processing_time
         }
         
         # Cache the response
@@ -894,16 +919,22 @@ async def upload_and_process(
         if cached_doc:
             logger.info(f"Using cached document: {file.filename}")
             chunks = cached_doc["chunks"]
+            document_analysis = cached_doc.get("document_analysis")
         else:
             # Process uploaded file
-            logger.info(f"Processing uploaded file: {file.filename}")
+            # logger.info(f"Processing uploaded file: {file.filename}")
             document_text = document_processor.process_uploaded_file(file)
             
-            # Process document chunks
+            # Universal document processing - no specific document type detection
+            # logger.info(f"📄 Processing document with universal analyzer")
+            
+            # Process document chunks with universal approach
             chunks = document_processor.chunk_text(document_text, document_id)
             
             # Cache the processed document
-            cache_document(document_id, chunks)
+            cache_document(document_id, {
+                "chunks": chunks
+            })
         
         # Convert dictionary chunks to DocumentChunk objects for vector store
         from models import DocumentChunk
@@ -935,10 +966,16 @@ async def upload_and_process(
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Invalid questions format. Error: {str(e)}")
         
+        # Log uploaded file and queries
+        logger.info(f"📄 File: {file.filename}")
+        logger.info(f"❓ Queries: {questions_list}")
+        
         # Process each question with universal approach
         answers = []
+        query_intents = []
+        
         for question in questions_list:
-            # Universal query analysis
+            # Universal query analysis - works for any document type
             query_analysis = query_analyzer.analyze_query(question)
             
             # Universal search for relevant chunks
@@ -946,7 +983,7 @@ async def upload_and_process(
             if vector_store:
                 relevant_chunks = vector_store.search_universal(question, config.TOP_K_RESULTS)
             
-            # Universal LLM processing
+            # Universal LLM processing - handles any document type
             answer = ""
             if llm_processor:
                 answer = llm_processor.process_query(question, relevant_chunks, query_analysis)
@@ -954,15 +991,19 @@ async def upload_and_process(
                 answer = "LLM processor not initialized. Please check your configuration."
             
             answers.append(answer)
+            query_intents.append(query_analysis.intent.value)
         
         processing_time = time.time() - start_time
         
+        # Log processing summary
+        logger.info(f"✅ Processing complete - {len(answers)} answers in {processing_time:.2f}s")
+        
         return {
             "answers": answers,
+            "query_intents": query_intents,
             "processing_time": processing_time,
             "chunks_processed": len(chunks),
-            "cache_used": cached_doc is not None,
-            "universal_processing": True
+            "cache_used": cached_doc is not None
         }
         
     except Exception as e:

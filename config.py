@@ -30,22 +30,22 @@ class Config:
     # HackRx API Key
     HACKRX_API_KEY = os.getenv("HACKRX_API_KEY")
     
-    # Model Settings - Optimized for SPEED + Accuracy
-    MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4000"))  # Reduced for faster responses
-    TEMPERATURE = float(os.getenv("TEMPERATURE", "0.1"))  # Keep low for accuracy
+    # Model Settings - Optimized for 100-Page PDFs
+    MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4000"))  # Balanced for accuracy and speed
+    TEMPERATURE = float(os.getenv("TEMPERATURE", "0.05"))  # Lower for better accuracy
     
-    # Enhanced Document Processing - Optimized for SPEED
-    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "800"))  # Reduced for faster processing
-    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))  # Reduced overlap
-    MAX_CHUNKS_PER_DOCUMENT = int(os.getenv("MAX_CHUNKS_PER_DOCUMENT", "1000"))  # Reduced limit
+    # Enhanced Document Processing - Optimized for 100-Page PDFs
+    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1200"))  # Balanced for accuracy and speed
+    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "250"))  # Good overlap for accuracy
+    MAX_CHUNKS_PER_DOCUMENT = int(os.getenv("MAX_CHUNKS_PER_DOCUMENT", "800"))  # Handle 100-page PDFs
     
-    # Enhanced Search Settings - Optimized for SPEED
-    TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "8"))  # Reduced for faster search
-    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.4"))  # Increased for better quality
+    # Enhanced Search Settings - Optimized for 100-Page PDFs
+    TOP_K_RESULTS = int(os.getenv("TOP_K_RESULTS", "10"))  # Good balance for accuracy
+    SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.35"))  # Balanced threshold
     
-    # API Settings - Optimized for SPEED
-    API_TIMEOUT = int(os.getenv("API_TIMEOUT", "30"))  # Reduced timeout
-    MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))  # Increased for parallel processing
+    # API Settings - Optimized for 100-Page PDFs
+    API_TIMEOUT = int(os.getenv("API_TIMEOUT", "20"))  # Balanced timeout
+    MAX_CONCURRENT_REQUESTS = int(os.getenv("MAX_CONCURRENT_REQUESTS", "15"))  # Balanced concurrency
     
     # Cache Settings - Enhanced for SPEED
     ENABLE_CACHE = os.getenv("ENABLE_CACHE", "True").lower() == "true"
@@ -54,9 +54,9 @@ class Config:
     # Vector Database Settings
     EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "3072"))
     
-    # Performance Optimization Settings
-    EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "20"))  # Increased batch size
-    QDRANT_BATCH_SIZE = int(os.getenv("QDRANT_BATCH_SIZE", "10"))  # Optimized batch size
+    # Performance Optimization Settings - Optimized for 100-Page PDFs
+    EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "40"))  # Balanced batch size
+    QDRANT_BATCH_SIZE = int(os.getenv("QDRANT_BATCH_SIZE", "20"))  # Balanced batch size
     ENABLE_RESPONSE_CACHE = os.getenv("ENABLE_RESPONSE_CACHE", "True").lower() == "true"
     RESPONSE_CACHE_TTL = int(os.getenv("RESPONSE_CACHE_TTL", "3600"))
     
@@ -80,8 +80,8 @@ class Config:
     MAX_ANSWER_LENGTH = int(os.getenv("MAX_ANSWER_LENGTH", "1000"))
     ENABLE_ANSWER_QUALITY_CHECK = os.getenv("ENABLE_ANSWER_QUALITY_CHECK", "True").lower() == "true"
     
-    # Speed vs Accuracy Balance Settings
-    SPEED_PRIORITY = os.getenv("SPEED_PRIORITY", "False").lower() == "true"  # Set to True for speed over accuracy
-    MAX_QUERY_VARIATIONS = int(os.getenv("MAX_QUERY_VARIATIONS", "3")) if not os.getenv("SPEED_PRIORITY", "False").lower() == "true" else 1
+    # Accuracy vs Speed Balance Settings - Optimized for 100-Page PDFs
+    ACCURACY_PRIORITY = os.getenv("ACCURACY_PRIORITY", "True").lower() == "true"  # Set to True for accuracy
+    MAX_QUERY_VARIATIONS = int(os.getenv("MAX_QUERY_VARIATIONS", "2")) if os.getenv("ACCURACY_PRIORITY", "True").lower() == "true" else 1
     ENABLE_ENHANCED_PROMPTS = os.getenv("ENABLE_ENHANCED_PROMPTS", "True").lower() == "true"
-    ENABLE_QUERY_VARIATIONS = os.getenv("ENABLE_QUERY_VARIATIONS", "True").lower() == "true" and not os.getenv("SPEED_PRIORITY", "False").lower() == "true"
+    ENABLE_QUERY_VARIATIONS = os.getenv("ENABLE_QUERY_VARIATIONS", "True").lower() == "true" and os.getenv("ACCURACY_PRIORITY", "True").lower() == "true"
